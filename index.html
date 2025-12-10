@@ -6,17 +6,20 @@
   <title>SNES 俄羅斯方塊</title>
   <style>
     html, body { height: 100%; }
-    body { margin: 0; display: flex; flex-direction: column; align-items: center; background: #1a1a26; color: #fff; font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Noto Sans", "Microsoft JhengHei", sans-serif; }
+    body { margin: 0; display: flex; flex-direction: column; align-items: center; background: #1a1a26; color: #fff; font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Noto Sans", "Microsoft JhengHei", sans-serif; overscroll-behavior: none; }
     .toolbar { width: 480px; max-width: 95vw; display: flex; gap: 12px; align-items: center; justify-content: space-between; padding: 12px; box-sizing: border-box; }
     .controls { display: flex; gap: 12px; align-items: center; font-weight: 700; }
     #game { width: 480px; height: 640px; max-width: 95vw; image-rendering: crisp-edges; image-rendering: pixelated; border: 4px solid #000; border-radius: 8px; background: #0d0d14; }
     .btn { padding: 6px 12px; border: 2px solid #000; border-radius: 6px; background: #9b59b6; cursor: pointer; font-weight: 700; color: #fff; }
     .mobile { width: 480px; max-width: 95vw; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 12px; box-sizing: border-box; }
-    .pad { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
-    .pad .big { padding: 14px 0; font-size: 18px; background: #3a3a5a; border: 2px solid #000; border-radius: 10px; }
-    .pad .big:active { transform: translateY(1px); }
-    .actions { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
-    .actions .big { padding: 14px 0; font-size: 18px; background: #3a5fa3; border: 2px solid #000; border-radius: 10px; }
+    .dpad { display: grid; grid-template-columns: 60px 60px 60px; grid-template-rows: 60px 60px 60px; gap: 6px; justify-content: center; touch-action: none; }
+    .dir { background: #3c3c50; border: 4px solid #000; border-radius: 10px; color: #ddd; font-weight: 800; }
+    .dir:active { transform: translateY(1px); }
+    .dpad .center { visibility: hidden; }
+    .abpad { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; justify-items: center; align-items: center; }
+    .btn-ab { width: 72px; height: 72px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, #cf4a7a 0%, #a03260 70%, #6d1f40 100%); border: 4px solid #000; color: #fff; font-weight: 900; font-size: 18px; touch-action: none; }
+    .gb-aux { grid-column: span 2; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 80%; }
+    .btn-aux { padding: 8px 0; border-radius: 18px; background: #3a3a5a; border: 3px solid #000; color: #fff; font-weight: 800; touch-action: none; }
     @media (min-width: 900px) { .mobile { margin-top: 8px; } }
   </style>
 </head>
@@ -32,15 +35,24 @@
   </div>
   <canvas id="game" width="480" height="640"></canvas>
   <div class="mobile">
-    <div class="pad">
-      <button class="big" id="btnLeft">←</button>
-      <button class="big" id="btnDown">↓</button>
-      <button class="big" id="btnRight">→</button>
+    <div class="dpad">
+      <button class="dir" id="btnUp">↑</button>
+      <button class="dir" id="btnUpDummy" style="visibility:hidden"></button>
+      <button class="dir" id="btnRight">→</button>
+      <button class="dir" id="btnLeft">←</button>
+      <button class="dir center"></button>
+      <button class="dir" id="btnDown">↓</button>
+      <button class="dir" style="visibility:hidden"></button>
+      <button class="dir" style="visibility:hidden"></button>
+      <button class="dir" style="visibility:hidden"></button>
     </div>
-    <div class="actions">
-      <button class="big" id="btnRotL">↶</button>
-      <button class="big" id="btnRotR">↷</button>
-      <button class="big" id="btnHard">落地</button>
+    <div class="abpad">
+      <button class="btn-ab" id="btnB">B</button>
+      <button class="btn-ab" id="btnA">A</button>
+      <div class="gb-aux">
+        <button class="btn-aux" id="btnSelect">SELECT</button>
+        <button class="btn-aux" id="btnStart">START</button>
+      </div>
     </div>
   </div>
   <script src="src/tetris.js"></script>
