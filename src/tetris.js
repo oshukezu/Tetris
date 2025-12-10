@@ -12,6 +12,12 @@ const PY = 40;
 const statusLabel = document.getElementById('status');
 const pauseBtn = document.getElementById('pause');
 const restartBtn = document.getElementById('restart');
+const btnLeft = document.getElementById('btnLeft');
+const btnRight = document.getElementById('btnRight');
+const btnDown = document.getElementById('btnDown');
+const btnRotL = document.getElementById('btnRotL');
+const btnRotR = document.getElementById('btnRotR');
+const btnHard = document.getElementById('btnHard');
 
 let keys = new Set();
 let paused = false;
@@ -20,6 +26,7 @@ document.addEventListener('keydown', e => { keys.add(e.code); if (e.code === 'Ke
 document.addEventListener('keyup', e => { keys.delete(e.code); });
 pauseBtn.onclick = togglePause;
 restartBtn.onclick = restart;
+setupMobileControls();
 
 function createMatrix(rows, cols) { const m = []; for (let y = 0; y < rows; y++) { m[y] = new Array(cols).fill(0); } return m; }
 
@@ -137,3 +144,30 @@ function render(){ drawUI(); for (let y=0;y<ROWS;y++){ for (let x=0;x<COLS;x++){
 let last = performance.now();
 function loop(t){ const dt = t-last; last=t; if (!paused && !game.gameOver){ inputTick(); softDropTick(dt); game.dropCounter += dt; const interval = game.softDrop ? Math.max(60, game.dropInterval/6) : game.dropInterval; if (game.dropCounter > interval){ if (!tryMove(0,1)){ merge(game.cur); clearLines(); spawn(); } else { if (game.softDrop) game.score += 1; } game.dropCounter = 0; } } render(); requestAnimationFrame(loop); }
 requestAnimationFrame(loop);
+
+function setupMobileControls(){
+  const holds = { left:null, right:null };
+  const startHold = (key)=>{
+    if (key==='left'){
+      if (holds.left) return; tryMove(-1,0); holds.left = setInterval(()=>tryMove(-1,0), 90);
+    } else if (key==='right'){
+      if (holds.right) return; tryMove(1,0); holds.right = setInterval(()=>tryMove(1,0), 90);
+    }
+  };
+  const stopHold = (key)=>{
+    if (key==='left' && holds.left){ clearInterval(holds.left); holds.left=null; }
+    if (key==='right' && holds.right){ clearInterval(holds.right); holds.right=null; }
+  };
+  const on = (el, down, up)=>{
+    if (!el) return;
+    el.addEventListener('pointerdown', (e)=>{ e.preventDefault(); down(); });
+    el.addEventListener('pointerup', (e)=>{ e.preventDefault(); up(); });
+    el.addEventListener('pointerleave', (e)=>{ e.preventDefault(); up(); });
+  };
+  on(btnLeft, ()=>startHold('left'), ()=>stopHold('left'));
+  on(btnRight, ()=>startHold('right'), ()=>stopHold('right'));
+  on(btnDown, ()=>{ keys.add('ArrowDown'); }, ()=>{ keys.delete('ArrowDown'); });
+  on(btnRotL, ()=>{ tryRotate(-1); }, ()=>{});
+  on(btnRotR, ()=>{ tryRotate(1); }, ()=>{});
+  on(btnHard, ()=>{ hardDrop(); }, ()=>{});
+}
