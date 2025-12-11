@@ -169,6 +169,7 @@ function setupMobileControls(){
   const bindTouchPad = (pad)=>{
     if (!pad) return;
     let activeId = null;
+    let lastUp = 0;
     const rect = pad.getBoundingClientRect();
     const cx = rect.left + rect.width/2;
     const cy = rect.top + rect.height/2;
@@ -186,7 +187,7 @@ function setupMobileControls(){
       stopHold('down');
       if (ax < dead && ay < dead) return;
       if (ax > ay){ if (dx < 0) startHold('left'); else startHold('right'); }
-      else { if (dy > 0) startHold('down'); }
+      else { if (dy < 0) { tryRotate(-1); lastUp = Date.now(); } else if (dy > 0) startHold('down'); }
     };
     const onMove = (e)=>{
       if (activeId==null) return;
@@ -203,7 +204,10 @@ function setupMobileControls(){
       stopHold('down');
       if (ax < dead && ay < dead) return;
       if (ax > ay){ if (dx < 0) startHold('left'); else startHold('right'); }
-      else { if (dy > 0) startHold('down'); /* up: no-op */ }
+      else {
+        if (dy < 0) { if (Date.now() - lastUp > 140) { tryRotate(-1); lastUp = Date.now(); } }
+        else if (dy > 0) startHold('down');
+      }
     };
     const onEnd = (e)=>{
       activeId = null;
@@ -249,3 +253,13 @@ function swapWithNext(){
   game.cur = candidate;
   game.next = new Piece(prev.type);
 }
+function setThemeByTime(){
+  const h = new Date().getHours();
+  const day = h >= 7 && h < 19;
+  const root = document.documentElement.style;
+  root.setProperty('--bg', day ? '#eaeef7' : '#1a1a26');
+  root.setProperty('--fg', day ? '#111' : '#fff');
+  root.setProperty('--dpad', day ? '#6b7890' : '#3c3c50');
+}
+setThemeByTime();
+setInterval(setThemeByTime, 30*60*1000);
