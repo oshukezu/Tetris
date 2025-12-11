@@ -14,10 +14,7 @@ const pauseBtn = document.getElementById('pause');
 const restartBtn = document.getElementById('restart');
 const mobileEl = document.querySelector('.mobile');
 const isMobile = ('ontouchstart' in window) || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0);
-const btnLeft = document.getElementById('btnLeft');
-const btnRight = document.getElementById('btnRight');
-const btnDown = document.getElementById('btnDown');
-const btnUp = document.getElementById('btnUp');
+const dpadEl = document.getElementById('dpad');
 const btnA = document.getElementById('btnA');
 const btnB = document.getElementById('btnB');
 const btnSelect = document.getElementById('btnSelect');
@@ -157,9 +154,9 @@ function setupMobileControls(){
   const holds = { left:null, right:null, down:false };
   const startHold = (key)=>{
     if (key==='left'){
-      if (holds.left) return; tryMove(-1,0); holds.left = setInterval(()=>tryMove(-1,0), 90);
+      if (holds.left) return; tryMove(-1,0); holds.left = setInterval(()=>tryMove(-1,0), 95);
     } else if (key==='right'){
-      if (holds.right) return; tryMove(1,0); holds.right = setInterval(()=>tryMove(1,0), 90);
+      if (holds.right) return; tryMove(1,0); holds.right = setInterval(()=>tryMove(1,0), 95);
     } else if (key==='down'){
       if (holds.down) return; holds.down = true; keys.add('ArrowDown');
     }
@@ -169,16 +166,52 @@ function setupMobileControls(){
     if (key==='right' && holds.right){ clearInterval(holds.right); holds.right=null; }
     if (key==='down' && holds.down){ holds.down=false; keys.delete('ArrowDown'); }
   };
+  const bindTouchPad = (pad)=>{
+    if (!pad) return;
+    let activeId = null;
+    const rect = pad.getBoundingClientRect();
+    const cx = rect.left + rect.width/2;
+    const cy = rect.top + rect.height/2;
+    const dead = 16;
+    const onStart = (e)=>{
+      const t = e.touches[0] || e.changedTouches[0];
+      activeId = t.identifier;
+      e.preventDefault();
+    };
+    const onMove = (e)=>{
+      if (activeId==null) return;
+      const t = Array.from(e.touches).find(x=>x.identifier===activeId) || e.changedTouches[0];
+      if (!t) return;
+      const inRect = t.clientX >= rect.left && t.clientX <= rect.right && t.clientY >= rect.top && t.clientY <= rect.bottom;
+      if (!inRect){ stopHold('left'); stopHold('right'); stopHold('down'); return; }
+      const dx = t.clientX - cx;
+      const dy = t.clientY - cy;
+      const ax = Math.abs(dx);
+      const ay = Math.abs(dy);
+      stopHold('left');
+      stopHold('right');
+      stopHold('down');
+      if (ax < dead && ay < dead) return;
+      if (ax > ay){ if (dx < 0) startHold('left'); else startHold('right'); }
+      else { if (dy > 0) startHold('down'); /* up: no-op */ }
+    };
+    const onEnd = (e)=>{
+      activeId = null;
+      stopHold('left');
+      stopHold('right');
+      stopHold('down');
+    };
+    pad.addEventListener('touchstart', onStart, { passive:false });
+    window.addEventListener('touchmove', onMove, { passive:false });
+    window.addEventListener('touchend', onEnd, { passive:false });
+    window.addEventListener('touchcancel', onEnd, { passive:false });
+  };
+  bindTouchPad(dpadEl);
   const touch = (el, down, up)=>{
     if (!el) return;
     el.addEventListener('touchstart', (e)=>{ e.preventDefault(); down(e); }, { passive: false });
     el.addEventListener('touchend', (e)=>{ e.preventDefault(); up(e); }, { passive: false });
-    el.addEventListener('click', (e)=>{ e.preventDefault(); down(e); up(e); });
   };
-  touch(btnLeft, ()=>startHold('left'), ()=>stopHold('left'));
-  touch(btnRight, ()=>startHold('right'), ()=>stopHold('right'));
-  touch(btnDown, ()=>startHold('down'), ()=>stopHold('down'));
-  touch(btnUp, ()=>{}, ()=>{});
   touch(btnA, ()=>{ tryRotate(1); }, ()=>{});
   touch(btnB, ()=>{ swapWithNext(); }, ()=>{});
   touch(btnSelect, ()=>{ togglePause(); }, ()=>{});
