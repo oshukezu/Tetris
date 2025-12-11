@@ -177,6 +177,16 @@ function setupMobileControls(){
       const t = e.touches[0] || e.changedTouches[0];
       activeId = t.identifier;
       e.preventDefault();
+      const dx = t.clientX - cx;
+      const dy = t.clientY - cy;
+      const ax = Math.abs(dx);
+      const ay = Math.abs(dy);
+      stopHold('left');
+      stopHold('right');
+      stopHold('down');
+      if (ax < dead && ay < dead) return;
+      if (ax > ay){ if (dx < 0) startHold('left'); else startHold('right'); }
+      else { if (dy > 0) startHold('down'); }
     };
     const onMove = (e)=>{
       if (activeId==null) return;
@@ -205,6 +215,19 @@ function setupMobileControls(){
     window.addEventListener('touchmove', onMove, { passive:false });
     window.addEventListener('touchend', onEnd, { passive:false });
     window.addEventListener('touchcancel', onEnd, { passive:false });
+    pad.addEventListener('click', (e)=>{
+      const dx = e.clientX - cx;
+      const dy = e.clientY - cy;
+      const ax = Math.abs(dx);
+      const ay = Math.abs(dy);
+      stopHold('left');
+      stopHold('right');
+      stopHold('down');
+      if (ax < dead && ay < dead) return;
+      if (ax > ay){ if (dx < 0) startHold('left'); else startHold('right'); }
+      else { if (dy > 0) startHold('down'); }
+      setTimeout(()=>{ stopHold('left'); stopHold('right'); stopHold('down'); }, 120);
+    });
   };
   bindTouchPad(dpadEl);
   const touch = (el, down, up)=>{
