@@ -12,6 +12,8 @@ const PY = 40;
 const statusLabel = document.getElementById('status');
 const pauseBtn = document.getElementById('pause');
 const restartBtn = document.getElementById('restart');
+const mobileEl = document.querySelector('.mobile');
+const isMobile = ('ontouchstart' in window) || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0);
 const joystick = document.getElementById('joystick');
 const stick = document.getElementById('stick');
 const btnA = document.getElementById('btnA');
@@ -25,7 +27,8 @@ document.addEventListener('keydown', e => { keys.add(e.code); if (e.code === 'Ke
 document.addEventListener('keyup', e => { keys.delete(e.code); });
 pauseBtn.onclick = togglePause;
 restartBtn.onclick = restart;
-setupMobileControls();
+if (mobileEl) mobileEl.style.display = isMobile ? 'grid' : 'none';
+if (isMobile) setupMobileControls();
 
 function createMatrix(rows, cols) { const m = []; for (let y = 0; y < rows; y++) { m[y] = new Array(cols).fill(0); } return m; }
 
@@ -146,6 +149,7 @@ requestAnimationFrame(loop);
 
 function setupMobileControls(){
   const holds = { left:null, right:null, down:false };
+  let activeId = null;
   const startHold = (key)=>{
     if (key==='left'){
       if (holds.left) return; tryMove(-1,0); holds.left = setInterval(()=>tryMove(-1,0), 90);
@@ -192,16 +196,31 @@ function setupMobileControls(){
     const cx = rect.left + rect.width/2;
     const cy = rect.top + rect.height/2;
     const pt = e.touches[0] || e.changedTouches[0];
-    const dx = pt.clientX - cx;
-    const dy = pt.clientY - cy;
-    setStick(dx, dy);
-    updateDir(dx, dy);
-  }, ()=>{
-    setStick(0,0);
-    stopHold('left');
-    stopHold('right');
-    stopHold('down');
-  });
+    activeId = pt.identifier;
+    const move = (ev)=>{
+      const t = Array.from(ev.touches).find(x=>x.identifier===activeId) || ev.changedTouches[0];
+      if (!t) return;
+      const inRect = t.clientX >= rect.left && t.clientX <= rect.right && t.clientY >= rect.top && t.clientY <= rect.bottom;
+      if (!inRect){ setStick(0,0); stopHold('left'); stopHold('right'); stopHold('down'); return; }
+      const dx = t.clientX - cx;
+      const dy = t.clientY - cy;
+      setStick(dx, dy);
+      updateDir(dx, dy);
+    };
+    const end = ()=>{
+      activeId = null;
+      setStick(0,0);
+      stopHold('left');
+      stopHold('right');
+      stopHold('down');
+      window.removeEventListener('touchmove', move, { passive: false });
+      window.removeEventListener('touchend', end, { passive: false });
+      window.removeEventListener('touchcancel', end, { passive: false });
+    };
+    window.addEventListener('touchmove', move, { passive: false });
+    window.addEventListener('touchend', end, { passive: false });
+    window.addEventListener('touchcancel', end, { passive: false });
+  }, ()=>{});
   touch(btnA, ()=>{ tryRotate(1); }, ()=>{});
   touch(btnB, ()=>{ tryRotate(-1); }, ()=>{});
   touch(btnSelect, ()=>{ togglePause(); }, ()=>{});
