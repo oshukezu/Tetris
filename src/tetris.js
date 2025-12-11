@@ -14,8 +14,10 @@ const pauseBtn = document.getElementById('pause');
 const restartBtn = document.getElementById('restart');
 const mobileEl = document.querySelector('.mobile');
 const isMobile = ('ontouchstart' in window) || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0);
-const joystick = document.getElementById('joystick');
-const stick = document.getElementById('stick');
+const btnLeft = document.getElementById('btnLeft');
+const btnRight = document.getElementById('btnRight');
+const btnDown = document.getElementById('btnDown');
+const btnUp = document.getElementById('btnUp');
 const btnA = document.getElementById('btnA');
 const btnB = document.getElementById('btnB');
 const btnSelect = document.getElementById('btnSelect');
@@ -60,7 +62,7 @@ class Piece {
   constructor(type) { this.type = type; this.blocks = SHAPES[type].map(p=>p.slice()); this.x = 3; this.y = -2; this.color = COLORS[TYPES.indexOf(type)+1]; }
 }
 
-class Game { constructor(){ this.board = createMatrix(ROWS, COLS); this.bag = new Bag(); this.cur = new Piece(this.bag.next()); this.next = new Piece(this.bag.next()); this.level = 1; this.score = 0; this.lines = 0; this.dropInterval = 800; this.dropCounter = 0; this.softDrop = false; this.gameOver = false; } }
+class Game { constructor(){ this.board = createMatrix(ROWS, COLS); this.bag = new Bag(); this.cur = new Piece(this.bag.next()); this.next = new Piece(this.bag.next()); this.level = 1; this.score = 0; this.lines = 0; this.combo = 0; this.dropInterval = 800; this.dropCounter = 0; this.softDrop = false; this.gameOver = false; } }
 
 const game = new Game();
 
@@ -88,9 +90,13 @@ function clearLines() {
   }
   if (cleared) {
     const pts = cleared === 1 ? 100 : cleared === 2 ? 300 : cleared === 3 ? 500 : 800;
-    game.score += pts * game.level;
+    game.combo += 1;
+    const mult = Math.pow(1.1, game.combo);
+    game.score += Math.round(pts * game.level * mult);
     game.lines += cleared;
     if (game.lines >= game.level * 10) { game.level++; game.dropInterval = Math.max(120, 800 - (game.level-1)*60); }
+  } else {
+    game.combo = 0;
   }
 }
 
@@ -124,7 +130,7 @@ function softDropTick(dt) { if (keys.has('ArrowDown')) { game.dropCounter += dt 
 function inputTick() {
   if (keys.has('ArrowLeft')) { tryMove(-1,0); keys.delete('ArrowLeft'); }
   if (keys.has('ArrowRight')) { tryMove(1,0); keys.delete('ArrowRight'); }
-  if (keys.has('KeyB')) { tryRotate(-1); keys.delete('KeyB'); }
+  if (keys.has('KeyB')) { swapWithNext(); keys.delete('KeyB'); }
   if (keys.has('KeyA')) { tryRotate(1); keys.delete('KeyA'); }
   if (keys.has('Space')) { hardDrop(); keys.delete('Space'); }
 }
@@ -149,7 +155,6 @@ requestAnimationFrame(loop);
 
 function setupMobileControls(){
   const holds = { left:null, right:null, down:false };
-  let activeId = null;
   const startHold = (key)=>{
     if (key==='left'){
       if (holds.left) return; tryMove(-1,0); holds.left = setInterval(()=>tryMove(-1,0), 90);
@@ -168,60 +173,23 @@ function setupMobileControls(){
     if (!el) return;
     el.addEventListener('touchstart', (e)=>{ e.preventDefault(); down(e); }, { passive: false });
     el.addEventListener('touchend', (e)=>{ e.preventDefault(); up(e); }, { passive: false });
+    el.addEventListener('click', (e)=>{ e.preventDefault(); down(e); up(e); });
   };
-  const setStick = (dx, dy)=>{
-    const radius = 60;
-    const len = Math.hypot(dx, dy);
-    const clamped = len > radius ? radius/len : 1;
-    const x = dx * clamped;
-    const y = dy * clamped;
-    stick.style.transform = `translate(${x}px, ${y}px)`;
-  };
-  const updateDir = (dx, dy)=>{
-    const dead = 18;
-    const ax = Math.abs(dx);
-    const ay = Math.abs(dy);
-    stopHold('left');
-    stopHold('right');
-    stopHold('down');
-    if (ax < dead && ay < dead) return;
-    if (ax > ay){
-      if (dx < 0) startHold('left'); else startHold('right');
-    } else {
-      if (dy > 0) startHold('down');
-    }
-  };
-  touch(joystick, (e)=>{
-    const rect = joystick.getBoundingClientRect();
-    const cx = rect.left + rect.width/2;
-    const cy = rect.top + rect.height/2;
-    const pt = e.touches[0] || e.changedTouches[0];
-    activeId = pt.identifier;
-    const move = (ev)=>{
-      const t = Array.from(ev.touches).find(x=>x.identifier===activeId) || ev.changedTouches[0];
-      if (!t) return;
-      const inRect = t.clientX >= rect.left && t.clientX <= rect.right && t.clientY >= rect.top && t.clientY <= rect.bottom;
-      if (!inRect){ setStick(0,0); stopHold('left'); stopHold('right'); stopHold('down'); return; }
-      const dx = t.clientX - cx;
-      const dy = t.clientY - cy;
-      setStick(dx, dy);
-      updateDir(dx, dy);
-    };
-    const end = ()=>{
-      activeId = null;
-      setStick(0,0);
-      stopHold('left');
-      stopHold('right');
-      stopHold('down');
-      window.removeEventListener('touchmove', move, { passive: false });
-      window.removeEventListener('touchend', end, { passive: false });
-      window.removeEventListener('touchcancel', end, { passive: false });
-    };
-    window.addEventListener('touchmove', move, { passive: false });
-    window.addEventListener('touchend', end, { passive: false });
-    window.addEventListener('touchcancel', end, { passive: false });
-  }, ()=>{});
+  touch(btnLeft, ()=>startHold('left'), ()=>stopHold('left'));
+  touch(btnRight, ()=>startHold('right'), ()=>stopHold('right'));
+  touch(btnDown, ()=>startHold('down'), ()=>stopHold('down'));
+  touch(btnUp, ()=>{}, ()=>{});
   touch(btnA, ()=>{ tryRotate(1); }, ()=>{});
-  touch(btnB, ()=>{ tryRotate(-1); }, ()=>{});
+  touch(btnB, ()=>{ swapWithNext(); }, ()=>{});
   touch(btnSelect, ()=>{ togglePause(); }, ()=>{});
+}
+function swapWithNext(){
+  const prev = game.cur;
+  const candidate = new Piece(game.next.type);
+  candidate.blocks = game.next.blocks.map(p=>p.slice());
+  candidate.x = prev.x;
+  candidate.y = prev.y;
+  if (collides(candidate, candidate.x, candidate.y, candidate.blocks)) return;
+  game.cur = candidate;
+  game.next = new Piece(prev.type);
 }
