@@ -12,12 +12,11 @@ const PY = 40;
 const statusLabel = document.getElementById('status');
 const pauseBtn = document.getElementById('pause');
 const restartBtn = document.getElementById('restart');
-const btnLeft = document.getElementById('btnLeft');
-const btnRight = document.getElementById('btnRight');
-const btnDown = document.getElementById('btnDown');
-const btnRotL = document.getElementById('btnRotL');
-const btnRotR = document.getElementById('btnRotR');
-const btnHard = document.getElementById('btnHard');
+const joystick = document.getElementById('joystick');
+const stick = document.getElementById('stick');
+const btnA = document.getElementById('btnA');
+const btnB = document.getElementById('btnB');
+const btnSelect = document.getElementById('btnSelect');
 
 let keys = new Set();
 let paused = false;
@@ -122,8 +121,8 @@ function softDropTick(dt) { if (keys.has('ArrowDown')) { game.dropCounter += dt 
 function inputTick() {
   if (keys.has('ArrowLeft')) { tryMove(-1,0); keys.delete('ArrowLeft'); }
   if (keys.has('ArrowRight')) { tryMove(1,0); keys.delete('ArrowRight'); }
-  if (keys.has('KeyZ')) { tryRotate(-1); keys.delete('KeyZ'); }
-  if (keys.has('KeyX')) { tryRotate(1); keys.delete('KeyX'); }
+  if (keys.has('KeyB')) { tryRotate(-1); keys.delete('KeyB'); }
+  if (keys.has('KeyA')) { tryRotate(1); keys.delete('KeyA'); }
   if (keys.has('Space')) { hardDrop(); keys.delete('Space'); }
 }
 
@@ -146,28 +145,64 @@ function loop(t){ const dt = t-last; last=t; if (!paused && !game.gameOver){ inp
 requestAnimationFrame(loop);
 
 function setupMobileControls(){
-  const holds = { left:null, right:null };
+  const holds = { left:null, right:null, down:false };
   const startHold = (key)=>{
     if (key==='left'){
       if (holds.left) return; tryMove(-1,0); holds.left = setInterval(()=>tryMove(-1,0), 90);
     } else if (key==='right'){
       if (holds.right) return; tryMove(1,0); holds.right = setInterval(()=>tryMove(1,0), 90);
+    } else if (key==='down'){
+      if (holds.down) return; holds.down = true; keys.add('ArrowDown');
     }
   };
   const stopHold = (key)=>{
     if (key==='left' && holds.left){ clearInterval(holds.left); holds.left=null; }
     if (key==='right' && holds.right){ clearInterval(holds.right); holds.right=null; }
+    if (key==='down' && holds.down){ holds.down=false; keys.delete('ArrowDown'); }
   };
-  const on = (el, down, up)=>{
+  const touch = (el, down, up)=>{
     if (!el) return;
-    el.addEventListener('pointerdown', (e)=>{ e.preventDefault(); down(); });
-    el.addEventListener('pointerup', (e)=>{ e.preventDefault(); up(); });
-    el.addEventListener('pointerleave', (e)=>{ e.preventDefault(); up(); });
+    el.addEventListener('touchstart', (e)=>{ e.preventDefault(); down(e); }, { passive: false });
+    el.addEventListener('touchend', (e)=>{ e.preventDefault(); up(e); }, { passive: false });
   };
-  on(btnLeft, ()=>startHold('left'), ()=>stopHold('left'));
-  on(btnRight, ()=>startHold('right'), ()=>stopHold('right'));
-  on(btnDown, ()=>{ keys.add('ArrowDown'); }, ()=>{ keys.delete('ArrowDown'); });
-  on(btnRotL, ()=>{ tryRotate(-1); }, ()=>{});
-  on(btnRotR, ()=>{ tryRotate(1); }, ()=>{});
-  on(btnHard, ()=>{ hardDrop(); }, ()=>{});
+  const setStick = (dx, dy)=>{
+    const radius = 60;
+    const len = Math.hypot(dx, dy);
+    const clamped = len > radius ? radius/len : 1;
+    const x = dx * clamped;
+    const y = dy * clamped;
+    stick.style.transform = `translate(${x}px, ${y}px)`;
+  };
+  const updateDir = (dx, dy)=>{
+    const dead = 18;
+    const ax = Math.abs(dx);
+    const ay = Math.abs(dy);
+    stopHold('left');
+    stopHold('right');
+    stopHold('down');
+    if (ax < dead && ay < dead) return;
+    if (ax > ay){
+      if (dx < 0) startHold('left'); else startHold('right');
+    } else {
+      if (dy > 0) startHold('down');
+    }
+  };
+  touch(joystick, (e)=>{
+    const rect = joystick.getBoundingClientRect();
+    const cx = rect.left + rect.width/2;
+    const cy = rect.top + rect.height/2;
+    const pt = e.touches[0] || e.changedTouches[0];
+    const dx = pt.clientX - cx;
+    const dy = pt.clientY - cy;
+    setStick(dx, dy);
+    updateDir(dx, dy);
+  }, ()=>{
+    setStick(0,0);
+    stopHold('left');
+    stopHold('right');
+    stopHold('down');
+  });
+  touch(btnA, ()=>{ tryRotate(1); }, ()=>{});
+  touch(btnB, ()=>{ tryRotate(-1); }, ()=>{});
+  touch(btnSelect, ()=>{ togglePause(); }, ()=>{});
 }
