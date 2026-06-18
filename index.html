@@ -7,11 +7,15 @@
   <link rel="apple-touch-icon" href="https://oshukezu.github.io/Tetris/tetris.png">
   <style>
     html, body { height: 100dvh; }
-    body { margin: 0; display: flex; flex-direction: column; align-items: center; background: var(--bg, #1a1a26); color: var(--fg, #fff); font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Noto Sans", "Microsoft JhengHei", sans-serif; overscroll-behavior: none; overflow: hidden; padding-bottom: env(safe-area-inset-bottom); }
-    .toolbar { width: 480px; max-width: 95vw; display: flex; gap: 12px; align-items: center; justify-content: space-between; padding: 12px; box-sizing: border-box; }
-    .controls { display: flex; gap: 12px; align-items: center; font-weight: 700; }
+    body { margin: 0; display: flex; flex-direction: column; align-items: center; background: var(--bg, #1a1a26); color: var(--fg, #fff); font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Noto Sans", "Microsoft JhengHei", sans-serif; overscroll-behavior: none; overflow-x: hidden; overflow-y: auto; padding-bottom: env(safe-area-inset-bottom); }
+    .toolbar { width: 480px; max-width: 95vw; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; padding: 12px; box-sizing: border-box; }
+    .controls { display: flex; gap: 8px; align-items: center; font-weight: 700; flex-wrap: wrap; }
+    .stats { font-size: 0.85rem; opacity: 0.85; }
     #game { width: 480px; height: 640px; max-width: 95vw; image-rendering: crisp-edges; image-rendering: pixelated; border: 4px solid #000; border-radius: 8px; background: #0d0d14; }
-    .btn { padding: 6px 12px; border: 2px solid #000; border-radius: 6px; background: #9b59b6; cursor: pointer; font-weight: 700; color: #fff; }
+    .btn { padding: 6px 12px; border: 2px solid #000; border-radius: 6px; background: #9b59b6; cursor: pointer; font-weight: 700; color: #fff; font-size: 0.85rem; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-secondary { background: #3498db; }
+    .btn-accent { background: #e67e22; }
     .mobile { width: 480px; max-width: 95vw; display: none; grid-template-columns: 1fr 1fr; gap: 12px; padding: 12px; box-sizing: border-box; }
     .dpad { width: 180px; height: 180px; position: relative; justify-self: center; touch-action: none; }
     #dpadSvg { display: block; }
@@ -21,6 +25,28 @@
     .btn-ab { width: 72px; height: 72px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, #cf4a7a 0%, #a03260 70%, #6d1f40 100%); border: 4px solid #000; color: #fff; font-weight: 900; font-size: 18px; touch-action: none; }
     .gb-aux { grid-column: span 2; display: grid; grid-template-columns: 1fr; gap: 12px; width: 80%; justify-items: center; }
     .btn-aux { width: 100%; padding: 12px 0; border-radius: 18px; background: #3a3a5a; border: 3px solid #000; color: #fff; font-weight: 900; font-size: 20px; letter-spacing: 0.5px; touch-action: none; }
+    .auth-bar { width: 480px; max-width: 95vw; display: flex; gap: 8px; align-items: center; padding: 0 12px 8px; box-sizing: border-box; font-size: 0.85rem; }
+    #auth-user-label { opacity: 0.8; }
+    .challenge-banner { width: 480px; max-width: 95vw; margin: 0 12px 8px; padding: 10px 12px; background: #2c2c40; border: 2px solid #000; border-radius: 8px; box-sizing: border-box; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
+    .challenge-banner.hidden { display: none; }
+    .challenge-actions { display: flex; gap: 6px; }
+    .leaderboard-panel { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 100; padding: 16px; box-sizing: border-box; }
+    .leaderboard-panel.open { display: flex; }
+    .leaderboard-modal { background: #1f1f2e; border: 3px solid #000; border-radius: 12px; width: 100%; max-width: 420px; max-height: 80vh; display: flex; flex-direction: column; overflow: hidden; }
+    .leaderboard-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 2px solid #333; }
+    .lb-tabs { display: flex; gap: 4px; padding: 8px 12px; border-bottom: 2px solid #333; }
+    .lb-tab { flex: 1; padding: 8px 4px; border: none; background: #2c2c40; color: #aaa; font-weight: 700; cursor: pointer; border-radius: 6px; font-size: 0.8rem; }
+    .lb-tab.active { background: #9b59b6; color: #fff; }
+    #leaderboard-my-rank { padding: 8px 16px; font-size: 0.85rem; color: #f1c40f; border-bottom: 1px solid #333; }
+    #leaderboard-list { flex: 1; overflow-y: auto; padding: 8px 12px; }
+    .lb-row { display: flex; align-items: center; padding: 6px 8px; border-radius: 6px; font-size: 0.9rem; }
+    .lb-row.lb-header { font-size: 0.75rem; color: #888; font-weight: 700; }
+    .lb-row.lb-me { background: rgba(155,89,182,0.25); }
+    .lb-rank { width: 36px; text-align: center; flex-shrink: 0; }
+    .lb-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .lb-value { width: 80px; text-align: right; flex-shrink: 0; font-weight: 700; }
+    .lb-loading, .lb-empty, .lb-error { text-align: center; padding: 24px; color: #888; }
+    .lb-error { color: #e74c3c; }
     @media (min-width: 900px) { .mobile { margin-top: 8px; } }
     @media (pointer: coarse) {
       #game { width: 92vw; height: auto; aspect-ratio: 480 / 640; }
@@ -33,12 +59,34 @@
     <div class="controls">
       <span id="status">分數 0｜等級 1｜行數 0</span>
     </div>
+    <div class="controls stats">
+      <span>最高 <strong id="best-score">0</strong></span>
+      <span>Combo <strong id="best-combo">0</strong></span>
+      <span><strong id="games-played">0</strong> 局</span>
+    </div>
     <div class="controls">
+      <button class="btn btn-secondary" id="leaderboard-btn">排行榜</button>
+      <button class="btn btn-accent" id="challenge-create-btn" disabled>發起挑戰</button>
       <button class="btn" id="restart">重開</button>
       <button class="btn" id="pause">暫停</button>
     </div>
   </div>
+
+  <div class="auth-bar">
+    <span id="auth-user-label">載入中…</span>
+    <button class="btn btn-secondary" id="auth-google-btn">Google 登入</button>
+  </div>
+
+  <div class="challenge-banner hidden" id="challenge-banner">
+    <span id="challenge-share-text"></span>
+    <div class="challenge-actions">
+      <button class="btn btn-secondary" id="challenge-copy-btn">複製連結</button>
+      <button class="btn" id="challenge-dismiss-btn">關閉</button>
+    </div>
+  </div>
+
   <canvas id="game" width="480" height="640"></canvas>
+
   <div class="mobile">
     <div class="dpad" id="dpad">
       <svg id="dpadSvg" viewBox="0 0 180 180" width="180" height="180" aria-hidden="true">
@@ -54,6 +102,32 @@
       </div>
     </div>
   </div>
+
+  <div class="leaderboard-panel" id="leaderboard-panel">
+    <div class="leaderboard-modal">
+      <div class="leaderboard-header">
+        <strong>排行榜</strong>
+        <button class="btn" id="leaderboard-close">關閉</button>
+      </div>
+      <div class="lb-tabs">
+        <button class="lb-tab active" data-tab="score">最高分</button>
+        <button class="lb-tab" data-tab="combo">Combo</button>
+        <button class="lb-tab" data-tab="plays">遊玩次數</button>
+      </div>
+      <div id="leaderboard-my-rank"></div>
+      <div id="leaderboard-list"></div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/supabase-service.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/sync.js"></script>
+  <script src="js/leaderboard.js"></script>
+  <script src="js/challenge.js"></script>
   <script src="src/tetris.js"></script>
+  <script src="js/app.js"></script>
 </body>
 </html>

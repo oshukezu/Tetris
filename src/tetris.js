@@ -59,7 +59,26 @@ class Piece {
   constructor(type) { this.type = type; this.blocks = SHAPES[type].map(p=>p.slice()); this.x = 3; this.y = -2; this.color = COLORS[TYPES.indexOf(type)+1]; }
 }
 
-class Game { constructor(){ this.board = createMatrix(ROWS, COLS); this.bag = new Bag(); this.cur = new Piece(this.bag.next()); this.next = new Piece(this.bag.next()); this.level = 1; this.score = 0; this.lines = 0; this.combo = 0; this.dropInterval = 800; this.dropCounter = 0; this.softDrop = false; this.gameOver = false; } }
+class Game {
+  constructor() {
+    this.board = createMatrix(ROWS, COLS);
+    this.bag = new Bag();
+    this.cur = new Piece(this.bag.next());
+    this.next = new Piece(this.bag.next());
+    this.level = 1;
+    this.score = 0;
+    this.lines = 0;
+    this.combo = 0;
+    this.maxCombo = 0;
+    this.dropInterval = 800;
+    this.dropCounter = 0;
+    this.softDrop = false;
+    this.gameOver = false;
+    this.gameStartedAt = Date.now();
+    this._gameEndFired = false;
+    this.onGameEnd = null;
+  }
+}
 
 const game = new Game();
 
@@ -88,6 +107,7 @@ function clearLines() {
   if (cleared) {
     const pts = cleared === 1 ? 100 : cleared === 2 ? 300 : cleared === 3 ? 500 : 800;
     game.combo += 1;
+    if (game.combo > game.maxCombo) game.maxCombo = game.combo;
     const mult = Math.pow(1.1, game.combo);
     game.score += Math.round(pts * game.level * mult);
     game.lines += cleared;
@@ -97,9 +117,23 @@ function clearLines() {
   }
 }
 
+function endGame() {
+  if (game._gameEndFired) return;
+  game._gameEndFired = true;
+  const session = {
+    score: game.score,
+    lines: game.lines,
+    level: game.level,
+    maxCombo: game.maxCombo,
+    durationMs: Date.now() - game.gameStartedAt
+  };
+  if (typeof game.onGameEnd === 'function') game.onGameEnd(session);
+  window.dispatchEvent(new CustomEvent('tetrisGameEnd', { detail: session }));
+}
+
 function spawn() {
   game.cur = game.next; game.cur.x = 3; game.cur.y = -2; game.next = new Piece(game.bag.next());
-  if (collides(game.cur)) { game.gameOver = true; }
+  if (collides(game.cur)) { game.gameOver = true; endGame(); }
 }
 
 function tryMove(dx, dy) {
@@ -133,18 +167,49 @@ function inputTick() {
 }
 
 function togglePause(){ paused = !paused; }
-function restart(){ Object.assign(game, new Game()); }
+function restart(){
+  const onGameEnd = game.onGameEnd;
+  Object.assign(game, new Game());
+  game.onGameEnd = onGameEnd;
+}
 
 function drawCell(x,y,val){ if (!val) return; const px = PX + x*CELL; const py = PY + y*CELL; const col = COLORS[val]; ctx.fillStyle = col; ctx.fillRect(px+1, py+1, CELL-2, CELL-2); ctx.fillStyle = 'rgba(255,255,255,0.2)'; ctx.fillRect(px+2, py+2, CELL-2, CELL/3); ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.fillRect(px+2, py+CELL/2, CELL-3, CELL/2); ctx.lineWidth = 3; ctx.strokeStyle = '#000'; ctx.strokeRect(px+0.5, py+0.5, CELL-1, CELL-1); }
 
 function drawPiece(p){ for (const [x,y] of p.blocks){ const px = p.x + x; const py = p.y + y; if (py >= 0) drawCell(px,py,TYPES.indexOf(p.type)+1); } }
 
-function drawUI(){ ctx.fillStyle = '#0d0d14'; ctx.fillRect(0,0,W,H); ctx.lineWidth = 4; ctx.strokeStyle = '#000'; ctx.fillStyle = '#1f1f2e'; ctx.fillRect(PX-6, PY-6, COLS*CELL+12, ROWS*CELL+12); ctx.strokeRect(PX-6.5, PY-6.5, COLS*CELL+13, ROWS*CELL+13); ctx.fillStyle = '#1f1f2e'; ctx.fillRect(W-180, PY-6, 160, 180); ctx.strokeRect(W-180.5, PY-6.5, 160, 180); ctx.fillStyle = '#fff'; ctx.font = 'bold 18px ui-sans-serif, system-ui, -apple-system'; ctx.fillText('NEXT', W-160, PY+20); drawNext(); ctx.fillText('SCORE', W-160, PY+120); ctx.fillText(String(game.score), W-160, PY+142); ctx.fillText('LEVEL '+game.level, W-160, PY+164); }
+function drawUI(){
+  ctx.fillStyle = '#0d0d14'; ctx.fillRect(0,0,W,H);
+  ctx.lineWidth = 4; ctx.strokeStyle = '#000';
+  ctx.fillStyle = '#1f1f2e'; ctx.fillRect(PX-6, PY-6, COLS*CELL+12, ROWS*CELL+12);
+  ctx.strokeRect(PX-6.5, PY-6.5, COLS*CELL+13, ROWS*CELL+13);
+  ctx.fillStyle = '#1f1f2e'; ctx.fillRect(W-180, PY-6, 160, 220);
+  ctx.strokeRect(W-180.5, PY-6.5, 160, 220);
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 18px ui-sans-serif, system-ui, -apple-system';
+  ctx.fillText('NEXT', W-160, PY+20); drawNext();
+  ctx.fillText('SCORE', W-160, PY+120);
+  ctx.fillText(String(game.score), W-160, PY+142);
+  ctx.fillText('LEVEL '+game.level, W-160, PY+164);
+  if (game.combo > 0) {
+    ctx.fillStyle = '#f1c40f';
+    ctx.fillText('COMBO x'+game.combo, W-160, PY+186);
+    ctx.fillStyle = '#fff';
+  }
+  const best = window.TetrisStorage ? window.TetrisStorage.getBestScore() : 0;
+  ctx.fillStyle = '#aaa'; ctx.font = 'bold 14px ui-sans-serif, system-ui, -apple-system';
+  ctx.fillText('BEST '+best, W-160, PY+206);
+}
 
 function drawNext(){ const p = game.next; for (const [x,y] of p.blocks){ const px = W-140 + x*CELL*0.7; const py = PY+30 + y*CELL*0.7; ctx.fillStyle = p.color; ctx.fillRect(px, py, CELL*0.7, CELL*0.7); ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.strokeRect(px+0.5, py+0.5, CELL*0.7, CELL*0.7); }
 }
 
-function render(){ drawUI(); for (let y=0;y<ROWS;y++){ for (let x=0;x<COLS;x++){ drawCell(x,y,game.board[y][x]); } } drawPiece(game.cur); statusLabel.textContent = `分數 ${game.score}｜等級 ${game.level}｜行數 ${game.lines}${game.gameOver?'｜遊戲結束':''}${paused?'｜暫停':''}`; }
+function render(){
+  drawUI();
+  for (let y=0;y<ROWS;y++){ for (let x=0;x<COLS;x++){ drawCell(x,y,game.board[y][x]); } }
+  drawPiece(game.cur);
+  const best = window.TetrisStorage ? window.TetrisStorage.getBestScore() : 0;
+  const comboStr = game.combo > 0 ? `｜Combo ${game.combo}` : '';
+  statusLabel.textContent = `分數 ${game.score}｜最高 ${best}｜等級 ${game.level}｜行數 ${game.lines}${comboStr}${game.gameOver?'｜遊戲結束':''}${paused?'｜暫停':''}`;
+}
 
 let last = performance.now();
 function loop(t){ const dt = t-last; last=t; if (!paused && !game.gameOver){ inputTick(); softDropTick(dt); game.dropCounter += dt; const interval = game.softDrop ? Math.max(60, game.dropInterval/6) : game.dropInterval; if (game.dropCounter > interval){ if (!tryMove(0,1)){ merge(game.cur); clearLines(); spawn(); } else { if (game.softDrop) game.score += 1; } game.dropCounter = 0; } } render(); requestAnimationFrame(loop); }
